@@ -29,7 +29,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	pconfig "github.com/prometheus/common/config"
 
-	"blackbox_exporter/config"
+	"github.com/prometheus/blackbox_exporter/config"
 )
 
 var c = &config.Config{
