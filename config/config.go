@@ -41,10 +41,11 @@ import (
 var (
 	// DefaultModule set default configuration for the Module
 	DefaultModule = Module{
-		HTTP: DefaultHTTPProbe,
-		TCP:  DefaultTCPProbe,
-		ICMP: DefaultICMPProbe,
-		DNS:  DefaultDNSProbe,
+		HTTP:    DefaultHTTPProbe,
+		TCP:     DefaultTCPProbe,
+		ICMP:    DefaultICMPProbe,
+		ICMPQOS: DefaultICMPQoSProbe,
+		DNS:     DefaultDNSProbe,
 	}
 
 	// DefaultHTTPProbe set default value for HTTPProbe
@@ -69,6 +70,15 @@ var (
 	DefaultICMPProbe = ICMPProbe{
 		IPProtocolFallback: true,
 		TTL:                DefaultICMPTTL,
+	}
+
+	// DefaultICMPQoSProbe set default value for ICMPQOSProbe
+	DefaultICMPQoSProbe = ICMPQOSProbe{
+		TTL:        DefaultICMPTTL, // in seconds or hops number
+		Timeout:    1200,           // in milliseconds
+		Interval:   10,             // in milliseconds
+		Count:      100,            // repetitive count
+		PacketSize: 64,             // in bytes
 	}
 
 	// DefaultDNSProbe set default value for DNSProbe
@@ -133,7 +143,7 @@ func (sc *SafeConfig) ReloadConfig(confFile string, logger log.Logger) (err erro
 			module.HTTP.NoFollowRedirects = nil
 			c.Modules[name] = module
 			if logger != nil {
-				level.Warn(logger).Log("msg", "no_follow_redirects is deprecated and will be removed in the next release. It is replaced by follow_redirects.", "module", name)
+				_ = level.Warn(logger).Log("msg", "no_follow_redirects is deprecated and will be removed in the next release. It is replaced by follow_redirects.", "module", name)
 			}
 		}
 	}
@@ -198,6 +208,7 @@ type Module struct {
 	HTTP    HTTPProbe     `yaml:"http,omitempty"`
 	TCP     TCPProbe      `yaml:"tcp,omitempty"`
 	ICMP    ICMPProbe     `yaml:"icmp,omitempty"`
+	ICMPQOS ICMPQOSProbe  `yaml:"icmp_qos,omitempty"`
 	DNS     DNSProbe      `yaml:"dns,omitempty"`
 	GRPC    GRPCProbe     `yaml:"grpc,omitempty"`
 }
@@ -261,6 +272,14 @@ type ICMPProbe struct {
 	PayloadSize        int    `yaml:"payload_size,omitempty"`
 	DontFragment       bool   `yaml:"dont_fragment,omitempty"`
 	TTL                int    `yaml:"ttl,omitempty"`
+}
+
+type ICMPQOSProbe struct {
+	PacketSize int `yaml:"packet_size,omitempty"`
+	Interval   int `yaml:"interval,omitempty"`
+	Count      int `yaml:"count,omitempty"`
+	Timeout    int `yaml:"timeout,omitempty"`
+	TTL        int `yaml:"ttl,omitempty"`
 }
 
 type DNSProbe struct {
