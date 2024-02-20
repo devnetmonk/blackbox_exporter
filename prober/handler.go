@@ -27,7 +27,6 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 	"gopkg.in/yaml.v2"
@@ -42,14 +41,12 @@ var (
 		"dns":      ProbeDNS,
 		"grpc":     ProbeGRPC,
 	}
-	moduleUnknownCounter = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "blackbox_module_unknown_total",
-		Help: "Count of unknown modules requested by probes",
-	})
 )
 
-func Handler(w http.ResponseWriter, r *http.Request, c *config.Config, logger log.Logger,
-	rh *ResultHistory, timeoutOffset float64, params url.Values) {
+func Handler(w http.ResponseWriter, r *http.Request, c *config.Config, logger log.Logger, rh *ResultHistory, timeoutOffset float64, params url.Values,
+	moduleUnknownCounter prometheus.Counter,
+	logLevelProber level.Option) {
+
 	if params == nil {
 		params = r.URL.Query()
 	}
@@ -61,7 +58,9 @@ func Handler(w http.ResponseWriter, r *http.Request, c *config.Config, logger lo
 	if !ok {
 		http.Error(w, fmt.Sprintf("Unknown module %q", moduleName), http.StatusBadRequest)
 		_ = level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
-		moduleUnknownCounter.Add(1)
+		if moduleUnknownCounter != nil {
+			moduleUnknownCounter.Add(1)
+		}
 		return
 	}
 
@@ -111,7 +110,7 @@ func Handler(w http.ResponseWriter, r *http.Request, c *config.Config, logger lo
 		}
 	}
 
-	sl := newScrapeLogger(logger, moduleName, target)
+	sl := newScrapeLogger(logger, moduleName, target, logLevelProber)
 	_ = level.Info(sl).Log("msg", "Beginning probe", "probe", module.Prober, "timeout_seconds", timeoutSeconds)
 
 	start := time.Now()
@@ -162,13 +161,15 @@ type scrapeLogger struct {
 	next         log.Logger
 	buffer       bytes.Buffer
 	bufferLogger log.Logger
+	logLevel     level.Option
 }
 
-func newScrapeLogger(logger log.Logger, module string, target string) *scrapeLogger {
+func newScrapeLogger(logger log.Logger, module string, target string, logLevel level.Option) *scrapeLogger {
 	logger = log.With(logger, "module", module, "target", target)
 	sl := &scrapeLogger{
-		next:   logger,
-		buffer: bytes.Buffer{},
+		next:     logger,
+		buffer:   bytes.Buffer{},
+		logLevel: logLevel,
 	}
 	bl := log.NewLogfmtLogger(&sl.buffer)
 	sl.bufferLogger = log.With(bl, "ts", log.DefaultTimestampUTC, "caller", log.Caller(6), "module", module, "target", target)
@@ -177,15 +178,8 @@ func newScrapeLogger(logger log.Logger, module string, target string) *scrapeLog
 
 func (sl scrapeLogger) Log(keyvals ...interface{}) error {
 	sl.bufferLogger.Log(keyvals...)
-	kvs := make([]interface{}, len(keyvals))
-	copy(kvs, keyvals)
-	// Switch level to debug for application output.
-	for i := 0; i < len(kvs); i += 2 {
-		if kvs[i] == level.Key() {
-			kvs[i+1] = level.DebugValue()
-		}
-	}
-	return sl.next.Log(kvs...)
+
+	return level.NewFilter(sl.next, sl.logLevel).Log(keyvals...)
 }
 
 // DebugOutput returns plaintext debug output for a probe.

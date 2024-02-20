@@ -647,7 +647,7 @@ func ProbeHTTP(ctx context.Context, target string, module config.Module, registr
 			_ = level.Error(logger).Log("msg", "Final request was over SSL")
 			success = false
 		}
-	} else if httpConfig.FailIfNotSSL {
+	} else if httpConfig.FailIfNotSSL && success {
 		_ = level.Error(logger).Log("msg", "Final request was not over SSL")
 		success = false
 	}
