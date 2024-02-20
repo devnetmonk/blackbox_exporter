@@ -23,9 +23,9 @@ import (
 	"strconv"
 	"time"
 
+	"blackbox_exporter/config"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/prometheus/blackbox_exporter/config"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -35,11 +35,12 @@ import (
 
 var (
 	Probers = map[string]ProbeFn{
-		"http": ProbeHTTP,
-		"tcp":  ProbeTCP,
-		"icmp": ProbeICMP,
-		"dns":  ProbeDNS,
-		"grpc": ProbeGRPC,
+		"http":     ProbeHTTP,
+		"tcp":      ProbeTCP,
+		"icmp":     ProbeICMP,
+		"icmp_qos": ProbeICMPQoS,
+		"dns":      ProbeDNS,
+		"grpc":     ProbeGRPC,
 	}
 	moduleUnknownCounter = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "blackbox_module_unknown_total",
@@ -59,7 +60,7 @@ func Handler(w http.ResponseWriter, r *http.Request, c *config.Config, logger lo
 	module, ok := c.Modules[moduleName]
 	if !ok {
 		http.Error(w, fmt.Sprintf("Unknown module %q", moduleName), http.StatusBadRequest)
-		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
+		_ = level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
 		moduleUnknownCounter.Add(1)
 		return
 	}
@@ -111,20 +112,20 @@ func Handler(w http.ResponseWriter, r *http.Request, c *config.Config, logger lo
 	}
 
 	sl := newScrapeLogger(logger, moduleName, target)
-	level.Info(sl).Log("msg", "Beginning probe", "probe", module.Prober, "timeout_seconds", timeoutSeconds)
+	_ = level.Info(sl).Log("msg", "Beginning probe", "probe", module.Prober, "timeout_seconds", timeoutSeconds)
 
 	start := time.Now()
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(probeSuccessGauge)
 	registry.MustRegister(probeDurationGauge)
-	success := prober(ctx, target, module, registry, sl)
+	success := prober(ctx, target, module, registry, sl, r)
 	duration := time.Since(start).Seconds()
 	probeDurationGauge.Set(duration)
 	if success {
 		probeSuccessGauge.Set(1)
-		level.Info(sl).Log("msg", "Probe succeeded", "duration_seconds", duration)
+		_ = level.Info(sl).Log("msg", "Probe succeeded", "duration_seconds", duration)
 	} else {
-		level.Error(sl).Log("msg", "Probe failed", "duration_seconds", duration)
+		_ = level.Error(sl).Log("msg", "Probe failed", "duration_seconds", duration)
 	}
 
 	debugOutput := DebugOutput(&module, &sl.buffer, registry)
@@ -201,7 +202,8 @@ func DebugOutput(module *config.Module, logBuffer *bytes.Buffer, registry *prome
 		expfmt.MetricFamilyToText(buf, mf)
 	}
 	fmt.Fprintf(buf, "\n\n\nModule configuration:\n")
-	c, err := yaml.Marshal(module)
+	var c []byte
+	c, err = yaml.Marshal(module)
 	if err != nil {
 		fmt.Fprintf(buf, "Error marshalling config: %s\n", err)
 	}
@@ -213,7 +215,6 @@ func DebugOutput(module *config.Module, logBuffer *bytes.Buffer, registry *prome
 func getTimeout(r *http.Request, module config.Module, offset float64) (timeoutSeconds float64, err error) {
 	// If a timeout is configured via the Prometheus header, add it to the request.
 	if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
-		var err error
 		timeoutSeconds, err = strconv.ParseFloat(v, 64)
 		if err != nil {
 			return 0, err
