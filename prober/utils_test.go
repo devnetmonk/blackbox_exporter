@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"math/big"
 	"net"
-	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -33,9 +32,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 )
-
-// not used
-var httpBlankRequest *http.Request
 
 // Check if expected results are in the registry
 func checkRegistryResults(expRes map[string]float64, mfs []*dto.MetricFamily, t *testing.T) {
