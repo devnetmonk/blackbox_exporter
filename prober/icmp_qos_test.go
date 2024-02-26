@@ -13,7 +13,7 @@ import (
 
 func TestProbeICMPQoS(t *testing.T) {
 	logger := log.NewNopLogger()
-	sc := config.SafeConfig{C: &config.Config{}}
+	sc := config.NewSafeConfig(prometheus.DefaultRegisterer)
 	configFile := "../example_qos.yml"
 	if err := sc.ReloadConfig(configFile, logger); err != nil {
 		_ = level.Error(logger).Log("msg", "Error loading config", "err", err)
