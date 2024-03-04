@@ -15,7 +15,6 @@ package prober
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -270,7 +269,6 @@ func ProbeICMPQoS(_ context.Context, target string, module config.Module, regist
 		var i int
 		var jitterCount int64
 		for i = 0; i <= seqMax; i++ {
-			fmt.Printf("Sequence: %v \t", i)
 
 			if i == 0 {
 				jitterSum = 0
@@ -280,11 +278,9 @@ func ProbeICMPQoS(_ context.Context, target string, module config.Module, regist
 			if rtt, ok := rttMapping[i]; ok {
 				if i == 0 {
 					prevTime = rtt
-					fmt.Printf("Prev Time: %v ns\n", prevTime.Nanoseconds())
 					continue
 				}
 				jitterCount++
-				fmt.Printf("Prev Time: %v ns\t", prevTime.Nanoseconds())
 				jitter = prevTime - rtt
 				if jitter < 0 {
 					jitter = -jitter
@@ -297,15 +293,8 @@ func ProbeICMPQoS(_ context.Context, target string, module config.Module, regist
 					jitterMax = jitter
 				}
 				prevTime = rtt
-				fmt.Printf("Jitter: %v ns\t", jitter.Nanoseconds())
-				fmt.Printf("RTT: %v ns\n", s.Rtts[i].Nanoseconds())
 			}
 		}
-		fmt.Printf("Jitter Statistic:\t")
-		fmt.Printf("Jitter :%v\t", float64(jitterSum.Nanoseconds())/float64(jitterCount*1000))
-		fmt.Printf("Jitter Max:%v\t", float64(jitterMax.Nanoseconds())/1000)
-		fmt.Printf("Jitter Min:%v\t", float64(jitterMin.Nanoseconds())/1000)
-		fmt.Printf("Jitter Sum:%v\n", float64(jitterSum.Nanoseconds())/1000)
 
 		// probe_qos_packet_count
 		probeQoSPacketCount.Set(float64(pinger.Count))
