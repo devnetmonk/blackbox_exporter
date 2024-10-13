@@ -40,8 +40,8 @@ import (
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 	"gopkg.in/yaml.v3"
 
-	"github.com/prometheus/blackbox_exporter/config"
-	"github.com/prometheus/blackbox_exporter/prober"
+	"blackbox_exporter/config"
+	"blackbox_exporter/prober"
 )
 
 var (
@@ -83,35 +83,35 @@ func run() int {
 	logLevelProberValue, _ := level.Parse(*logLevelProber)
 	logLevelProber := level.Allow(logLevelProberValue)
 
-	level.Info(logger).Log("msg", "Starting blackbox_exporter", "version", version.Info())
-	level.Info(logger).Log("build_context", version.BuildContext())
+	_ = level.Info(logger).Log("msg", "Starting blackbox_exporter", "version", version.Info())
+	_ = level.Info(logger).Log("build_context", version.BuildContext())
 
 	if err := sc.ReloadConfig(*configFile, logger); err != nil {
-		level.Error(logger).Log("msg", "Error loading config", "err", err)
+		_ = level.Error(logger).Log("msg", "Error loading config", "err", err)
 		return 1
 	}
 
 	if *configCheck {
-		level.Info(logger).Log("msg", "Config file is ok exiting...")
+		_ = level.Info(logger).Log("msg", "Config file is ok exiting...")
 		return 0
 	}
 
-	level.Info(logger).Log("msg", "Loaded config file")
+	_ = level.Info(logger).Log("msg", "Loaded config file")
 
 	// Infer or set Blackbox exporter externalURL
 	listenAddrs := toolkitFlags.WebListenAddresses
 	if *externalURL == "" && *toolkitFlags.WebSystemdSocket {
-		level.Error(logger).Log("msg", "Cannot automatically infer external URL with systemd socket listener. Please provide --web.external-url")
+		_ = level.Error(logger).Log("msg", "Cannot automatically infer external URL with systemd socket listener. Please provide --web.external-url")
 		return 1
 	} else if *externalURL == "" && len(*listenAddrs) > 1 {
-		level.Info(logger).Log("msg", "Inferring external URL from first provided listen address")
+		_ = level.Info(logger).Log("msg", "Inferring external URL from first provided listen address")
 	}
 	beURL, err := computeExternalURL(*externalURL, (*listenAddrs)[0])
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to determine external URL", "err", err)
+		_ = level.Error(logger).Log("msg", "failed to determine external URL", "err", err)
 		return 1
 	}
-	level.Debug(logger).Log("externalURL", beURL.String())
+	_ = level.Debug(logger).Log("externalURL", beURL.String())
 
 	// Default -web.route-prefix to path of -web.external-url.
 	if *routePrefix == "" {
@@ -125,7 +125,7 @@ func run() int {
 	if *routePrefix != "/" {
 		*routePrefix = *routePrefix + "/"
 	}
-	level.Debug(logger).Log("routePrefix", *routePrefix)
+	_ = level.Debug(logger).Log("routePrefix", *routePrefix)
 
 	hup := make(chan os.Signal, 1)
 	reloadCh := make(chan chan error)
@@ -135,16 +135,16 @@ func run() int {
 			select {
 			case <-hup:
 				if err := sc.ReloadConfig(*configFile, logger); err != nil {
-					level.Error(logger).Log("msg", "Error reloading config", "err", err)
+					_ = level.Error(logger).Log("msg", "Error reloading config", "err", err)
 					continue
 				}
-				level.Info(logger).Log("msg", "Reloaded config file")
+				_ = level.Info(logger).Log("msg", "Reloaded config file")
 			case rc := <-reloadCh:
 				if err := sc.ReloadConfig(*configFile, logger); err != nil {
-					level.Error(logger).Log("msg", "Error reloading config", "err", err)
+					_ = level.Error(logger).Log("msg", "Error reloading config", "err", err)
 					rc <- err
 				} else {
-					level.Info(logger).Log("msg", "Reloaded config file")
+					_ = level.Info(logger).Log("msg", "Reloaded config file")
 					rc <- nil
 				}
 			}
@@ -255,7 +255,7 @@ func run() int {
 		c, err := yaml.Marshal(sc.C)
 		sc.RUnlock()
 		if err != nil {
-			level.Warn(logger).Log("msg", "Error marshalling configuration", "err", err)
+			_ = level.Warn(logger).Log("msg", "Error marshalling configuration", "err", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -270,7 +270,7 @@ func run() int {
 
 	go func() {
 		if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
-			level.Error(logger).Log("msg", "Error starting HTTP server", "err", err)
+			_ = level.Error(logger).Log("msg", "Error starting HTTP server", "err", err)
 			close(srvc)
 		}
 	}()
@@ -278,7 +278,7 @@ func run() int {
 	for {
 		select {
 		case <-term:
-			level.Info(logger).Log("msg", "Received SIGTERM, exiting gracefully...")
+			_ = level.Info(logger).Log("msg", "Received SIGTERM, exiting gracefully...")
 			return 0
 		case <-srvc:
 			return 1

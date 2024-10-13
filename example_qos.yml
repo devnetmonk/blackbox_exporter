@@ -1,0 +1,17 @@
+modules:
+  # check config.go in DefaultICMPQoSProbe
+  icmp_qos_example:
+    prober: icmp_qos
+    icmp_qos:
+  icmp_qos_slow:
+    prober: icmp_qos
+    icmp_qos:
+      interval: 10 # in microseconds
+  icmp_qos_flood:
+    prober: icmp_qos
+    icmp_qos:
+      count: 1000
+  icmp_qos_heavy:
+    prober: icmp_qos
+    icmp_qos:
+      packet_size: 1472 # in bytes
